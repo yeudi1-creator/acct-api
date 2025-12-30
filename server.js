@@ -11,20 +11,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// הגשת ה-HTML מהשרת עצמו קודם
-app.use(express.static(path.join(__dirname, "public")));
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-// חיבור ל-MongoDB
+// --- חיבור ל-MongoDB ---
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected ✅"))
   .catch(err => console.error("MongoDB error ❌", err));
 
-// מודל ליד
+// --- מודל ליד ---
 const LeadSchema = new mongoose.Schema({
   firstName: String,
   lastName: String,
@@ -32,10 +25,9 @@ const LeadSchema = new mongoose.Schema({
   email: String,
   createdAt: { type: Date, default: Date.now }
 });
-
 const Lead = mongoose.model("Lead", LeadSchema);
 
-// פונקציה לשליחת מייל עם פרטי ליד
+// --- פונקציה לשליחת מייל עם פרטי ליד ---
 async function sendLeadEmail(lead) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -66,7 +58,7 @@ async function sendLeadEmail(lead) {
   await transporter.sendMail(mailOptions);
 }
 
-// API לקבלת לידים
+// --- API לקבלת לידים ---
 app.post("/api/leads", async (req, res) => {
   try {
     console.log("📥 BODY שהגיע מהטופס:", req.body);
@@ -89,7 +81,15 @@ app.post("/api/leads", async (req, res) => {
   }
 });
 
-// הפעלת שרת
+// --- הגשת קבצים סטטיים ---
+app.use(express.static(path.join(__dirname, "public")));
+
+// --- לכל route שלא נתפס (למשל / או כל URL אחר) שולח index.html ---
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, "public", "indx.html"));
+});
+
+// --- הפעלת שרת ---
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} 🚀`);
