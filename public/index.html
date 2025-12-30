@@ -12,6 +12,7 @@
       direction: rtl;
       color: #111;
     }
+
     .container {
       max-width: 900px;
       margin: 40px auto;
@@ -21,9 +22,11 @@
       box-shadow: 0 15px 40px rgba(0,0,0,0.1);
       border-top: 6px solid #d4af37;
     }
+
     h1 { text-align: center; font-size: 34px; margin-bottom: 20px; }
     h1 span { color: #d4af37; }
     .main-text { text-align: center; font-weight: 700; font-size: 18px; margin-bottom: 30px; }
+
     .flex-section { display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; }
     .info-side { flex: 1 1 55%; }
     .highlight {
@@ -36,9 +39,11 @@
     }
     .highlight p { margin: 6px 0; }
     .warning { color: #b8860b; font-weight: 700; }
+
     ul { list-style: none; padding: 0; margin: 0; }
     ul li { font-size: 16px; padding: 8px 0; }
     ul li::before { content: "✔️ "; margin-left: 6px; }
+
     .form-box {
       flex: 1 1 40%;
       background: #fdfdfd;
@@ -48,7 +53,9 @@
       box-sizing: border-box;
       position: relative;
     }
+
     .form-box h2 { text-align: center; margin-bottom: 15px; font-size: 20px; }
+
     input {
       width: 100%;
       padding: 10px;
@@ -59,11 +66,12 @@
       box-sizing: border-box;
     }
     input:focus { outline: none; border-color: #d4af37; }
+
     button {
       width: 100%;
       padding: 14px;
       font-size: 16px;
-      font-weight: bold;
+      font-weight: 600;
       background: #000;
       color: #d4af37;
       border: none;
@@ -71,8 +79,10 @@
       cursor: pointer;
     }
     button:hover { background: #d4af37; color: #000; }
+
     .bottom-text { text-align: center; margin-top: 30px; font-weight: 600; font-size: 16px; }
     footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 14px; }
+
     .spinner {
       display: none;
       position: absolute;
@@ -86,10 +96,12 @@
       height: 30px;
       animation: spin 1s linear infinite;
     }
+
     @keyframes spin {
       0% { transform: translate(-50%, -50%) rotate(0deg); }
       100% { transform: translate(-50%, -50%) rotate(360deg); }
     }
+
     @media (max-width: 800px) {
       .flex-section { flex-direction: column; }
       .form-box, .info-side { width: 100%; }
@@ -105,7 +117,7 @@
   <div class="flex-section">
     <div class="info-side">
       <div class="highlight">
-        <p>⚠️ <strong>שימו לב:</strong></p>
+        <p><strong>⚠️ שימו לב:</strong></p>
         <p>שנת המס <strong>2019</strong> נסגרת בתאריך <strong>31.12.2025</strong></p>
         <p class="warning">לאחר מועד זה לא ניתן לדרוש החזר.</p>
         <p>💰 אל תתנו לכסף שלכם ללכת לאיבוד!</p>
@@ -143,7 +155,9 @@ const form = document.getElementById("leadForm");
 const status = document.getElementById("status");
 const spinner = document.getElementById("spinner");
 
-// **שלב 3 – שליחה לשרת עצמו**
+// שליחה לשרת של Render
+const API_URL = "/api/leads"; // עכשיו שולח לשרת שמגיש את הדף עצמו
+
 form.addEventListener("submit", async function(e) {
   e.preventDefault();
 
@@ -158,14 +172,13 @@ form.addEventListener("submit", async function(e) {
   };
 
   try {
-    const response = await fetch("/api/leads", {
+    const response = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     });
 
     const result = await response.json();
-
     spinner.style.display = "none";
 
     if(result.success){
