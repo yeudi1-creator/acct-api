@@ -3,6 +3,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+const path = require("path");
 
 const app = express();
 
@@ -10,9 +11,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// בדיקת שרת בסיסית
+// הגשת ה-HTML מהשרת עצמו קודם
+app.use(express.static(path.join(__dirname, "public")));
+
 app.get("/", (req, res) => {
-  res.send("API is running ✅");
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // חיבור ל-MongoDB
@@ -32,9 +35,9 @@ const LeadSchema = new mongoose.Schema({
 
 const Lead = mongoose.model("Lead", LeadSchema);
 
-// שליחת מייל לכמה כתובות
+// פונקציה לשליחת מייל עם פרטי ליד
 async function sendLeadEmail(lead) {
-  let transporter = nodemailer.createTransport({
+  const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
@@ -46,7 +49,7 @@ async function sendLeadEmail(lead) {
     ? process.env.EMAIL_TARGETS.split(",")
     : [];
 
-  let mailOptions = {
+  const mailOptions = {
     from: process.env.EMAIL_USER,
     to: targets.map(t => t.trim()).join(", "),
     subject: `ליד חדש מ-${lead.firstName} ${lead.lastName}`,
@@ -63,7 +66,7 @@ async function sendLeadEmail(lead) {
   await transporter.sendMail(mailOptions);
 }
 
-// שמירה ל-Mongo + שליחת מייל
+// API לקבלת לידים
 app.post("/api/leads", async (req, res) => {
   try {
     console.log("📥 BODY שהגיע מהטופס:", req.body);
