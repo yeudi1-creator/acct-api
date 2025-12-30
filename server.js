@@ -1,14 +1,14 @@
-require("dotenv").config(); // טוען את משתני הסביבה מהקובץ .env
-const express = require("express"); // ליצירת שרת Express
-const mongoose = require("mongoose"); // ל-MongoDB
-const cors = require("cors"); // מאפשר קריאות CORS מהדפדפן
-const nodemailer = require("nodemailer"); // לשליחת מיילים
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const nodemailer = require("nodemailer");
 
 const app = express();
 
 // middleware
-app.use(cors()); // מאפשר קריאות ממקורות שונים
-app.use(express.json()); // מאפשר קריאת JSON מבקשות POST
+app.use(cors());
+app.use(express.json());
 
 // בדיקת שרת בסיסית
 app.get("/", (req, res) => {
@@ -32,25 +32,24 @@ const LeadSchema = new mongoose.Schema({
 
 const Lead = mongoose.model("Lead", LeadSchema);
 
-// פונקציה לשליחת מייל עם כמה נמענים
+// שליחת מייל לכמה כתובות
 async function sendLeadEmail(lead) {
-  // יצירת טרנספורטר של Nodemailer
   let transporter = nodemailer.createTransport({
-    service: "gmail", // שרת Gmail
+    service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
     }
   });
 
-  // רשימת מיילים לקבלת הליד
-  const targets = process.env.EMAIL_TARGETS.split(","); // מפריד לפי פסיקים למערך
+  const targets = process.env.EMAIL_TARGETS
+    ? process.env.EMAIL_TARGETS.split(",")
+    : [];
 
-  // הגדרת תוכן המייל
   let mailOptions = {
-    from: process.env.EMAIL_USER, // מי שולח
-    to: targets, // רשימת נמענים
-    subject: `ליד חדש מ-${lead.firstName} ${lead.lastName}`, // נושא
+    from: process.env.EMAIL_USER,
+    to: targets.map(t => t.trim()).join(", "),
+    subject: `ליד חדש מ-${lead.firstName} ${lead.lastName}`,
     html: `
       <h2>פרטי הליד</h2>
       <p><strong>שם פרטי:</strong> ${lead.firstName}</p>
@@ -61,23 +60,19 @@ async function sendLeadEmail(lead) {
     `
   };
 
-  // שליחת המייל
   await transporter.sendMail(mailOptions);
 }
 
-// קבלת ליד
+// שמירה ל-Mongo + שליחת מייל
 app.post("/api/leads", async (req, res) => {
   try {
     console.log("📥 BODY שהגיע מהטופס:", req.body);
 
-    // שמירת הליד בבסיס הנתונים
     const lead = new Lead(req.body);
     await lead.save();
 
-    // שליחת מייל עם פרטי הליד
     await sendLeadEmail(lead);
 
-    // החזרת תשובה לדפדפן
     res.status(201).json({
       success: true,
       message: "הליד נשמר והודעה נשלחה למייל ✅"
@@ -92,7 +87,7 @@ app.post("/api/leads", async (req, res) => {
 });
 
 // הפעלת שרת
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT} 🚀`);
 });
