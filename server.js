@@ -10,14 +10,15 @@ const app = express();
 // middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// --- חיבור ל-MongoDB ---
+// חיבור ל-MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected ✅"))
   .catch(err => console.error("MongoDB error ❌", err));
 
-// --- מודל ליד ---
+// מודל ליד
 const LeadSchema = new mongoose.Schema({
   firstName: String,
   lastName: String,
@@ -25,9 +26,10 @@ const LeadSchema = new mongoose.Schema({
   email: String,
   createdAt: { type: Date, default: Date.now }
 });
+
 const Lead = mongoose.model("Lead", LeadSchema);
 
-// --- פונקציה לשליחת מייל עם פרטי ליד ---
+// שליחת מייל
 async function sendLeadEmail(lead) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -37,9 +39,7 @@ async function sendLeadEmail(lead) {
     }
   });
 
-  const targets = process.env.EMAIL_TARGETS
-    ? process.env.EMAIL_TARGETS.split(",")
-    : [];
+  const targets = process.env.EMAIL_TARGETS ? process.env.EMAIL_TARGETS.split(",") : [];
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
@@ -58,39 +58,29 @@ async function sendLeadEmail(lead) {
   await transporter.sendMail(mailOptions);
 }
 
-// --- API לקבלת לידים ---
+// קבלת הטופס ושמירתו
 app.post("/api/leads", async (req, res) => {
   try {
-    console.log("📥 BODY שהגיע מהטופס:", req.body);
-
     const lead = new Lead(req.body);
     await lead.save();
 
     await sendLeadEmail(lead);
 
-    res.status(201).json({
-      success: true,
-      message: "הליד נשמר והודעה נשלחה למייל ✅"
-    });
+    res.json({ success: true, message: "הליד נשלח בהצלחה ✅" });
   } catch (err) {
-    console.error("❌ שגיאה בשמירת ליד או שליחת מייל:", err);
-    res.status(500).json({
-      success: false,
-      message: "שגיאה בשמירת הליד או שליחת המייל ❌"
-    });
+    console.error("Mail send error ❌", err);
+    res.json({ success: false, message: "שגיאה בשליחת מייל ❌" });
   }
 });
 
-// --- הגשת קבצים סטטיים ---
+// הגשת דף הטופס בלי כוכביות
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// סטטיים
 app.use(express.static(path.join(__dirname, "public")));
 
-// --- לכל route שלא נתפס (למשל / או כל URL אחר) שולח index.html ---
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, "public", "indx.html"));
-});
-
-// --- הפעלת שרת ---
+// הפעלת שרת
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} 🚀`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT} 🚀`));
