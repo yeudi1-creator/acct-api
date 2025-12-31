@@ -1,24 +1,26 @@
 require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
-const cors = require("cors");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const path = require("path");
 
 const app = express();
-
-// middleware
-app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// חיבור ל-MongoDB
+// ==== 1) התחברות ל-MongoDB ====
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected ✅"))
   .catch(err => console.error("MongoDB error ❌", err));
 
-// מודל ליד
+// ==== 2) הגדרת Resend API ====
+
+const resend = new Resend(process.env.RESEND_KEY);
+
+// ==== 3) מודל ללידים ====
+
 const LeadSchema = new mongoose.Schema({
   firstName: String,
   lastName: String,
@@ -29,58 +31,59 @@ const LeadSchema = new mongoose.Schema({
 
 const Lead = mongoose.model("Lead", LeadSchema);
 
-// שליחת מייל
-async function sendLeadEmail(lead) {
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  });
+// ==== 4) API לקבלת לידים ושילוח מייל ====
 
-  const targets = process.env.EMAIL_TARGETS ? process.env.EMAIL_TARGETS.split(",") : [];
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: targets.map(t => t.trim()).join(", "),
-    subject: `ליד חדש מ-${lead.firstName} ${lead.lastName}`,
-    html: `
-      <h2>פרטי הליד</h2>
-      <p><strong>שם פרטי:</strong> ${lead.firstName}</p>
-      <p><strong>שם משפחה:</strong> ${lead.lastName}</p>
-      <p><strong>טלפון:</strong> ${lead.phone}</p>
-      <p><strong>אימייל:</strong> ${lead.email}</p>
-      <p><strong>נשלח בתאריך:</strong> ${lead.createdAt}</p>
-    `
-  };
-
-  await transporter.sendMail(mailOptions);
-}
-
-// קבלת הטופס ושמירתו
 app.post("/api/leads", async (req, res) => {
   try {
-    const lead = new Lead(req.body);
+    const { firstName, lastName, phone, email } = req.body;
+
+    // שמירה למסד
+    const lead = new Lead({ firstName, lastName, phone, email });
     await lead.save();
+    console.log("📥 Lead saved:", lead);
 
-    await sendLeadEmail(lead);
+    // שליחת מייל דרך Resend
+    const result = await resend.emails.send({
+      from: process.env.EMAIL_SENDER,          // לדוגמא: no-reply@yourdomain.com
+      to: process.env.EMAIL_TARGETS.split(","), // נמענים מ־.env
+      subject: `ליד חדש מ-${firstName} ${lastName}`,
+      html: `
+        <h2>📨 ליד חדש הגיע</h2>
+        <p><strong>שם פרטי:</strong> ${firstName}</p>
+        <p><strong>שם משפחה:</strong> ${lastName}</p>
+        <p><strong>טלפון:</strong> ${phone}</p>
+        <p><strong>אימייל:</strong> ${email}</p>
+        <p><strong>נשלח בתאריך:</strong> ${lead.createdAt}</p>
+      `
+    });
 
-    res.json({ success: true, message: "הליד נשלח בהצלחה ✅" });
+    console.log("📧 Mail sent:", result);
+
+    return res.status(201).json({
+      success: true,
+      message: "הליד נשלח בהצלחה והמייל נשלח ✅"
+    });
   } catch (err) {
-    console.error("Mail send error ❌", err);
-    res.json({ success: false, message: "שגיאה בשליחת מייל ❌" });
+    console.error("❌ Error saving lead or sending mail:", err);
+    return res.status(500).json({
+      success: false,
+      message: "שגיאה בשליחה ❌"
+    });
   }
 });
 
-// הגשת דף הטופס בלי כוכביות
+// ==== 5) הגשת ה-HTML מתוך public ====
+
+app.use(express.static(path.join(__dirname, "public")));
+
+// כשפותחים את הבסיס Render או localhost → מראה את index.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// סטטיים
-app.use(express.static(path.join(__dirname, "public")));
+// ==== 6) הרצת השרת ====
 
-// הפעלת שרת
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT} 🚀`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} 🚀`);
+});
